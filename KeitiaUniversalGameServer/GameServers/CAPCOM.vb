@@ -1,15 +1,16 @@
 ﻿Imports System.Net
 Imports UniversalGameServer.Util
 
+
 Public Class CAPCOM
-    Shared ServerName = "TEMPLATE"
-    Shared DOMAIN = "http://localhost"
+    Shared ServerName = "Capcom Game Server"
+    Shared DOMAIN = "*"
     Shared PORT = "80"
     Shared Sub StartServer()
         Dim listener As New HttpListener()
-        listener.Prefixes.Add($"{DOMAIN}:{PORT}/")
+        listener.Prefixes.Add($"http://{DOMAIN}:{PORT}/")
         listener.Start()
-        Console.WriteLine($"{ServerName} is running on {DOMAIN}:{PORT}/")
+        Console.WriteLine($"{ServerName} is running on {DOMAIN}:{PORT}/ {vbCrLf}")
         'Handle requests asynchronously
         HandleRequestsAsync(listener).GetAwaiter().GetResult()
     End Sub
@@ -45,14 +46,16 @@ Public Class CAPCOM
             Dim RAWURL = request.RawUrl
             Select Case HTTPMethod
                 Case "GET"
-                    If RAWURL.ToLower.Contains("/sreg/isbn_score.php") Then
+                    If RAWURL.ToLower.Contains("/sreg/isbn_score") Or RAWURL.ToLower.Contains("/sreg/isr") Then
                         IsHexResponse = True
                         ResponseString = "01"
+                    ElseIf RAWURL.ToLower.Contains("/ac_check") Then
+                        IsHexResponse = False
+                        ResponseString = "1"
                     ElseIf RAWURL.ToLower.EndsWith("info.txt") Then
                         IsHexResponse = False
                         ResponseString = "OK"
                     End If
-
                 Case "POST"
                     If RAWURL.ToLower = "" Then
 
@@ -62,7 +65,8 @@ Public Class CAPCOM
             'Check for valid Response
             If ResponseString = "" Then
                 Console.WriteLine($"No ReponseString for {RAWURL}")
-                ResponseString = "OK"
+                IsHexResponse = True
+                ResponseString = "00000001"
             End If
 
             'Respond to Request
@@ -75,6 +79,7 @@ Public Class CAPCOM
                     buffer = HexStringToBytes(ResponseString)
                     response.ContentType = "application/octet-stream"
             End Select
+            Console.WriteLine($"Response: {ResponseString}")
             response.Headers("X-CAPCOM-STATUS") = "OK"
             response.StatusCode = 200
             response.ContentLength64 = Buffer.Length

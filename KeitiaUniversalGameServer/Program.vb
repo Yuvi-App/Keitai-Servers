@@ -2,6 +2,7 @@ Imports System
 Imports System.Threading
 Imports System.Net
 Imports System.Text
+Imports UniversalGameServer.CAPCOM
 
 Module Program
     Dim CurrentAppVer = "0.1"
@@ -17,29 +18,35 @@ Module Program
             New GameServer("Capcom Server", AddressOf CAPCOM.StartServer)
         }
 
+        Dim serverStarted As Boolean = False
+
         While True
-            Console.WriteLine("Available Game Servers:")
-            For i As Integer = 0 To gameServers.Count - 1
-                Console.WriteLine($"{i + 1}. {gameServers(i).Name}")
-            Next
 
-            Console.Write("Select a server to start (or type 'exit' to quit): ")
+            If Not serverStarted Then
+                Console.WriteLine("Available Game Servers:")
+                For i As Integer = 0 To gameServers.Count - 1
+                    Console.WriteLine($"{i + 1}. {gameServers(i).Name}")
+                Next
+                Console.Write("Select a server to start (or type 'exit' to quit): ")
+            End If
             Dim input As String = Console.ReadLine()
-
             If input.ToLower() = "exit" Then
                 Exit While
             End If
-
             If Integer.TryParse(input, result:=Nothing) AndAlso CInt(input) > 0 AndAlso CInt(input) <= gameServers.Count Then
                 Dim selectedServer As GameServer = gameServers(CInt(input) - 1)
                 Dim thread As New Thread(AddressOf selectedServer.StartServer)
                 thread.IsBackground = True
                 thread.Start()
                 Console.WriteLine($"{selectedServer.Name} is starting...")
+                serverStarted = True
             Else
-                Console.WriteLine("Invalid selection. Please try again.")
+                If serverStarted = False Then
+                    Console.WriteLine("Invalid selection. Please try again.")
+                End If
             End If
         End While
+
         Console.WriteLine("Exiting application.")
     End Sub
 
