@@ -1,9 +1,0 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <RootNamespace>Keitai_AA4_Server</RootNamespace>
-    <TargetFramework>net8.0</TargetFramework>
-  </PropertyGroup>
-
-</Project>
