@@ -65,9 +65,14 @@ Public Class CAPCOM
                         Dim filename = parts.Last()
                         Dim filepath = Path.Combine("MH_I", filename)
                         If File.Exists(filepath) Then
+                            If filepath.Contains("arm") Then
+                                ResponseString += "01"
+                            Else
+                                ResponseString += "4F"
+                            End If
                             IsHexResponse = True
                             Dim fileBytes = File.ReadAllBytes(filepath)
-                            ResponseString += GetFileSizeAsUInt16Hex(filepath)
+                            ResponseString += GetFileSizeAsUInt16HexLE(filepath)
                             ResponseString += BitConverter.ToString(fileBytes).Replace("-", "")
 
                             Console.WriteLine($"Sent {filepath}")
@@ -90,12 +95,6 @@ Public Class CAPCOM
                     End If
             End Select
 
-            'Check for valid Response
-            If ResponseString = "" Then
-                Console.WriteLine($"No ResponseString for {RAWURL}")
-                ResponseString = "OK"
-            End If
-
             'Respond to Request
             Dim buffer As Byte()
             Select Case IsHexResponse
@@ -116,7 +115,7 @@ Public Class CAPCOM
             Console.WriteLine("ERROR", "N/A", ex.Message)
         End Try
     End Sub
-    Shared Function GetFileSizeAsUInt16Hex(filePath As String) As String
+    Shared Function GetFileSizeAsUInt16HexBE(filePath As String) As String
         If Not File.Exists(filePath) Then
             Throw New FileNotFoundException("File not found.", filePath)
         End If
@@ -133,4 +132,27 @@ Public Class CAPCOM
         Dim fileSizeUInt16 As UShort = Convert.ToUInt16(fileSize)
         Return fileSizeUInt16.ToString("X4") ' Format as 4-digit hex
     End Function
+    Shared Function GetFileSizeAsUInt16HexLE(filePath As String) As String
+        If Not File.Exists(filePath) Then
+            Throw New FileNotFoundException("File not found.", filePath)
+        End If
+
+        ' Get file size
+        Dim fileSize As Long = New FileInfo(filePath).Length
+
+        ' Ensure the size fits within UInt16 (0 to 65535)
+        If fileSize > UShort.MaxValue Then
+            Throw New OverflowException("File size exceeds the UInt16 limit.")
+        End If
+
+        ' Convert to UInt16
+        Dim fileSizeUInt16 As UShort = Convert.ToUInt16(fileSize)
+
+        ' Get bytes in little-endian order
+        Dim bytes() As Byte = BitConverter.GetBytes(fileSizeUInt16)
+
+        ' Return as hex string, little endian (low byte first)
+        Return bytes(0).ToString("X2") & bytes(1).ToString("X2")
+    End Function
+
 End Class
