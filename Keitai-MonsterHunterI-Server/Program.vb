@@ -104,7 +104,6 @@ Public Class CAPCOM
                         If File.Exists(filepath) Then
                             IsHexResponse = True
                             Dim fileBytes = File.ReadAllBytes(filepath)
-                            ResponseString += GetFileSizeAsUInt16HexLE(filepath)
                             ResponseString += BitConverter.ToString(fileBytes).Replace("-", "")
 
                             Console.WriteLine($"Sent {filepath}")
