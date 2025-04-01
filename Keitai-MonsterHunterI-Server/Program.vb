@@ -19,7 +19,7 @@ End Module
 Public Class CAPCOM
     Shared ServerName As String = "Monster Hunter I"
     Shared DOMAIN As String = "http://*"
-    Shared PORT As String = "8087" ' Use non-privileged port unless running as root
+    Shared PORT As String = "80" ' Use non-privileged port unless running as root
     Shared listener As HttpListener
 
     Public Shared Async Sub StartServer()
@@ -89,9 +89,16 @@ Public Class CAPCOM
 
             Select Case HTTPMethod
                 Case "GET"
-                    If RAWURL.Contains("/sreg/isbn_score") Or RAWURL.Contains("/sreg/isr") Then
+                    If RAWURL.Contains("sreg/imh_sreg.php") And TY = Nothing Then
                         IsHexResponse = True
-                        ResponseString = "01"
+                        ResponseString = "01000000"
+                        '01 = g2g
+                        '6e =membership required
+                    ElseIf RAWURL.Contains("sreg/imh_sreg.php") And TY = "load" Then
+                        IsHexResponse = True
+                        ResponseString = "8C000000"
+                        '8c = g2g
+                        '6e =membership required
                     ElseIf RAWURL.Contains("/ac_check") Then
                         ResponseString = "1"
                     ElseIf RAWURL.EndsWith("info.txt") Then
