@@ -19,7 +19,7 @@ End Module
 Public Class CAPCOM
     Shared ServerName As String = "Monster Hunter I"
     Shared DOMAIN As String = "http://*"
-    Shared PORT As String = "80" ' Use non-privileged port unless running as root
+    Shared PORT As String = "8087" ' Use non-privileged port unless running as root
     Shared listener As HttpListener
 
     Public Shared Async Sub StartServer()
