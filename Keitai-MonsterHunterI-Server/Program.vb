@@ -106,21 +106,30 @@ Public Class CAPCOM
                     ElseIf RAWURL.Contains("/sh/i/mh/up/appli_904i/") Then
                         Dim parts = RAWURL.Split("/"c)
                         Dim filename = parts.Last()
-                        Dim filepath = Path.Combine("MH_I", filename)
+                        Dim OGfilepath = Path.Combine("MH_I", filename)
+                        Dim RecreatedFilePath = Path.Combine("MH_I", "recreated", filename)
 
-                        If File.Exists(filepath) Then
+                        If File.Exists(OGfilepath) Then 'Found orginal file
                             IsHexResponse = True
-                            Dim fileBytes = File.ReadAllBytes(filepath)
+                            Dim fileBytes = File.ReadAllBytes(OGfilepath)
                             ResponseString += BitConverter.ToString(fileBytes).Replace("-", "")
+                            Console.WriteLine($"Sent {OGfilepath}")
 
-                            Console.WriteLine($"Sent {filepath}")
-                        Else
-                            Console.WriteLine("File not found: " & filepath)
+                        Else 'Check if we got recreted one
+                            Console.WriteLine("File not found in OG: " & OGfilepath)
+                            If File.Exists(RecreatedFilePath) Then
+                                IsHexResponse = True
+                                Dim fileBytes = File.ReadAllBytes(RecreatedFilePath)
+                                ResponseString += BitConverter.ToString(fileBytes).Replace("-", "")
+                                Console.WriteLine($"Sent {RecreatedFilePath}")
+
+                            Else ' Still no 
+                                Console.WriteLine("File not found in Recrated: " & RecreatedFilePath)
+                            End If
                         End If
                     End If
 
                 Case "POST"
-                    ' Add POST handling if needed
             End Select
 
             Dim buffer As Byte()
