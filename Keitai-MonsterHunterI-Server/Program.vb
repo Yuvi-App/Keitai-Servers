@@ -1,8 +1,8 @@
 Imports System.IO
 Imports System.Net
 Imports System.Text
-Imports UniversalGameServer.Util
-Imports System.Runtime.InteropServices
+Imports System.Text.RegularExpressions
+
 Module Program
     Sub Main()
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
@@ -87,6 +87,9 @@ Public Class CAPCOM
             Dim HTTPMethod = request.HttpMethod
             Dim RAWURL = request.RawUrl.ToLower()
 
+            Dim filename As String = ""
+            Dim fileBytes As Byte() = Nothing
+            Dim description As String = ""
             Select Case HTTPMethod
                 Case "GET"
                     If RAWURL.Contains("sreg/imh_sreg.php") And TY = Nothing Then
@@ -94,53 +97,55 @@ Public Class CAPCOM
                         ResponseString = "01000000"
                         '01 = g2g
                         '6e =membership required
+
                     ElseIf RAWURL.Contains("sreg/imh_sreg.php") And TY = "load" Then
                         IsHexResponse = True
                         ResponseString = "8C000000"
                         '8c = g2g
                         '6e =membership required
+
                     ElseIf RAWURL.Contains("/ac_check") Then
                         ResponseString = "1"
+
                     ElseIf RAWURL.EndsWith("info.txt") Then
                         ResponseString = "OK"
+
                     ElseIf RAWURL.Contains("/sh/i/mh/up/appli_904i/") Then
-                        Dim filename = RAWURL.Split("/"c).Last()
-                        Dim fileBytes As Byte() = Nothing
-                        Dim description As String = ""
+                        filename = Path.GetFileName(RAWURL)
+                        fileBytes = Nothing
+                        description = ""
 
                         ' 1. Try original file first
                         fileBytes = TryReadFile(Path.Combine("MH_I", filename))
                         If fileBytes IsNot Nothing Then
                             description = $"Original: {filename}"
                         Else
-                            Console.WriteLine("File not found in OG: " & filename)
+                            Console.WriteLine($"File not found in OG: {filename}")
 
                             ' 2. Try recreated file
                             fileBytes = TryReadFile(Path.Combine("MH_I", "recreated", filename))
                             If fileBytes IsNot Nothing Then
                                 description = $"Recreated: {filename}"
                             Else
-                                Console.WriteLine("File not found in Recreated: " & filename)
+                                Console.WriteLine($"File not found in Recreated: {filename}")
 
-                                ' 3. If requested file is pcX_gard_YY.dat and was not found,
-                                '    try to find a matching .mbac file of the same weapon type to send as placeholder
-                                Dim patternMatch = System.Text.RegularExpressions.Regex.Match(filename, "^(pc\d+_gard)_\d+\.dat$")
-                                If patternMatch.Success Then
-                                    Dim baseName = patternMatch.Groups(1).Value
-                                    Dim placeholderPattern = New System.Text.RegularExpressions.Regex($"^{Regex.Escape(baseName)}.*\.dat$")
+                                ' 3. Try placeholder for pcX_gard_YY.dat
+                                Dim match = Regex.Match(filename, "^(pc\d+_gard)_\d+\.dat$", RegexOptions.IgnoreCase)
+                                If match.Success Then
+                                    Dim baseName As String = match.Groups(1).Value
+                                    Dim placeholderPattern = New Regex($"^{Regex.Escape(baseName)}.*\.dat$", RegexOptions.IgnoreCase)
 
-                                    ' Search both locations for placeholders
                                     For Each searchDir In {Path.Combine("MH_I"), Path.Combine("MH_I", "recreated")}
                                         If Directory.Exists(searchDir) Then
-                                            Dim placeholder = Directory.GetFiles(searchDir)
-                                                .Where(Function(f) placeholderPattern.IsMatch(Path.GetFileName(f)))
-                                                .OrderBy(Function(f) f)
-                                                .FirstOrDefault()
-                                            
+                                            Dim placeholder = Directory.EnumerateFiles(searchDir).
+                                                Where(Function(f) placeholderPattern.IsMatch(Path.GetFileName(f))).
+                                                OrderBy(Function(f) f).
+                                                FirstOrDefault()
+
                                             If placeholder IsNot Nothing Then
                                                 fileBytes = TryReadFile(placeholder)
                                                 If fileBytes IsNot Nothing Then
-                                                    description = $"Placeholder: {placeholder} for {filename}"
+                                                    description = $"Placeholder: {Path.GetFileName(placeholder)} for {filename}"
                                                     Exit For
                                                 End If
                                             End If
@@ -149,19 +154,21 @@ Public Class CAPCOM
                                 End If
                             End If
                         End If
-                    
-                        ' Handle response
-                        If fileBytes IsNot Nothing Then
-                            IsHexResponse = True
-                            ResponseString = BitConverter.ToString(fileBytes).Replace("-", "")
-                            Console.WriteLine($"Sent {description}")
-                        Else
-                            Console.WriteLine($"File not found in any location: {filename}")
-                        End If
                     End If
 
                 Case "POST"
+
             End Select
+
+            ' Handle response
+            If fileBytes IsNot Nothing Then
+                IsHexResponse = True
+                ResponseString = BitConverter.ToString(fileBytes).Replace("-", "")
+                Console.WriteLine($"Sent {description}")
+            Else
+                Console.WriteLine($"File not found in any location: {filename}")
+            End If
+
 
             Dim buffer As Byte()
             If IsHexResponse Then
