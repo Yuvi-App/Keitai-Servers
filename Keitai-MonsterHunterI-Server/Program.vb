@@ -104,28 +104,59 @@ Public Class CAPCOM
                     ElseIf RAWURL.EndsWith("info.txt") Then
                         ResponseString = "OK"
                     ElseIf RAWURL.Contains("/sh/i/mh/up/appli_904i/") Then
-                        Dim parts = RAWURL.Split("/"c)
-                        Dim filename = parts.Last()
-                        Dim OGfilepath = Path.Combine("MH_I", filename)
-                        Dim RecreatedFilePath = Path.Combine("MH_I", "recreated", filename)
+                        Dim filename = RAWURL.Split("/"c).Last()
+                        Dim fileBytes As Byte() = Nothing
+                        Dim description As String = ""
 
-                        If File.Exists(OGfilepath) Then 'Found orginal file
-                            IsHexResponse = True
-                            Dim fileBytes = File.ReadAllBytes(OGfilepath)
-                            ResponseString += BitConverter.ToString(fileBytes).Replace("-", "")
-                            Console.WriteLine($"Sent {OGfilepath}")
+                        ' 1. Try original file first
+                        fileBytes = TryReadFile(Path.Combine("MH_I", filename))
+                        If fileBytes IsNot Nothing Then
+                            description = $"Original: {filename}"
+                        Else
+                            Console.WriteLine("File not found in OG: " & filename)
 
-                        Else 'Check if we got recreted one
-                            Console.WriteLine("File not found in OG: " & OGfilepath)
-                            If File.Exists(RecreatedFilePath) Then
-                                IsHexResponse = True
-                                Dim fileBytes = File.ReadAllBytes(RecreatedFilePath)
-                                ResponseString += BitConverter.ToString(fileBytes).Replace("-", "")
-                                Console.WriteLine($"Sent {RecreatedFilePath}")
+                            ' 2. Try recreated file
+                            fileBytes = TryReadFile(Path.Combine("MH_I", "recreated", filename))
+                            If fileBytes IsNot Nothing Then
+                                description = $"Recreated: {filename}"
+                            Else
+                                Console.WriteLine("File not found in Recreated: " & filename)
 
-                            Else ' Still no 
-                                Console.WriteLine("File not found in Recrated: " & RecreatedFilePath)
+                                ' 3. If requested file is pcX_gard_YY.dat and was not found,
+                                '    try to find a matching .mbac file of the same weapon type to send as placeholder
+                                Dim patternMatch = System.Text.RegularExpressions.Regex.Match(filename, "^(pc\d+_gard)_\d+\.dat$")
+                                If patternMatch.Success Then
+                                    Dim baseName = patternMatch.Groups(1).Value
+                                    Dim placeholderPattern = New System.Text.RegularExpressions.Regex($"^{Regex.Escape(baseName)}.*\.dat$")
+
+                                    ' Search both locations for placeholders
+                                    For Each searchDir In {Path.Combine("MH_I"), Path.Combine("MH_I", "recreated")}
+                                        If Directory.Exists(searchDir) Then
+                                            Dim placeholder = Directory.GetFiles(searchDir)
+                                                .Where(Function(f) placeholderPattern.IsMatch(Path.GetFileName(f)))
+                                                .OrderBy(Function(f) f)
+                                                .FirstOrDefault()
+                                            
+                                            If placeholder IsNot Nothing Then
+                                                fileBytes = TryReadFile(placeholder)
+                                                If fileBytes IsNot Nothing Then
+                                                    description = $"Placeholder: {placeholder} for {filename}"
+                                                    Exit For
+                                                End If
+                                            End If
+                                        End If
+                                    Next
+                                End If
                             End If
+                        End If
+                    
+                        ' Handle response
+                        If fileBytes IsNot Nothing Then
+                            IsHexResponse = True
+                            ResponseString = BitConverter.ToString(fileBytes).Replace("-", "")
+                            Console.WriteLine($"Sent {description}")
+                        Else
+                            Console.WriteLine($"File not found in any location: {filename}")
                         End If
                     End If
 
@@ -166,5 +197,13 @@ Public Class CAPCOM
             bytes(i) = Convert.ToByte(cleanedHex.Substring(i * 2, 2), 16)
         Next
         Return bytes
+    End Function
+
+    ' Helper function that just reads files
+    Shared Function TryReadFile(filePath As String) As Byte()
+        If File.Exists(filePath) Then
+            Return File.ReadAllBytes(filePath)
+        End If
+        Return Nothing
     End Function
 End Class
